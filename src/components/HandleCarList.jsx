@@ -1,162 +1,233 @@
-import { useEffect, useState } from "react";
-import { v4 as uuidv4 } from 'uuid';
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 const HandleCarList = () => {
-  const [cars, setCars] = useState([]);
-  const [newCar, setNewCar] = useState({
-    id: "",
-    plate: "",
-    manufacture: "",
-    model: "",
-    image: "",
-    rentPerDay: 0,
-    capacity: 0,
-    description: "",
-    availableAt: "",
-    transmission: "",
-    available: false,
-    type: "",
-    year: 0,
-    options: [],
-    specs: []
-  });
+	const [cars, setCars] = useState([]);
+	const navigate = useNavigate();
+	const [filteredCars, setFilteredCars] = useState([]);
+	const [filter, setFilter] = useState("all");
 
-  const [isEditing, setIsEditing] = useState(false);
+	useEffect(() => {
+		fetchCars();
+	}, []);
 
-  useEffect(() => {
-    fetchCars();
-  }, []);
+	useEffect(() => {
+		handleFilter();
+	}, [filter, cars]);
 
-  const fetchCars = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/cars");
-      const data = await res.json();
-      setCars(data);
-    } catch (err) {
-      if (err.name === "AbortError") {
-        console.log("fetch aborted.");
-      }
-    }
-  };
+	const fetchCars = async () => {
+		try {
+			const res = await fetch("http://localhost:8000/cars");
+			const data = await res.json();
+			setCars(data);
+			setFilteredCars(data);
+		} catch (err) {
+			if (err.name === "AbortError") {
+				console.log("fetch aborted.");
+			} else {
+				console.error(err);
+			}
+		}
+	};
 
-  const createCar = async () => {
-    try {
-      const carWithId = { ...newCar, id: uuidv4() };
-      await fetch("http://localhost:8000/cars", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(carWithId)
-      });
-      fetchCars();
-    } catch (err) {
-      console.error(err);
-    }
-  };
+	const deleteCar = async (id) => {
+		try {
+			await fetch(`http://localhost:8000/cars/${id}`, {
+				method: "DELETE",
+			});
+			fetchCars();
+		} catch (err) {
+			console.error(err);
+		}
+	};
 
-  const updateCar = async (id) => {
-    try {
-      await fetch(`http://localhost:8000/cars/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(newCar)
-      });
-      fetchCars();
-    } catch (err) {
-      console.error(err);
-    }
-  };
+	const handleEdit = (car) => {
+		navigate(`/admin/cars/edit/${car.id}`);
+	};
 
-  const deleteCar = async (id) => {
-    try {
-      await fetch(`http://localhost:8000/cars/${id}`, {
-        method: "DELETE"
-      });
-      fetchCars();
-    } catch (err) {
-      console.error(err);
-    }
-  };
+	const handleFilter = () => {
+		if (filter == "all") {
+			setFilteredCars(cars);
+		} else {
+			console.log(filter);
+			setFilteredCars(cars.filter((car) => car.type == filter));
+		}
+	};
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setNewCar((prevCar) => ({
-      ...prevCar,
-      [name]: value
-    }));
-  };
+	return (
+		<div className="container-fluid py-4">
+			<h1 className="mt-2">Car Management Dashboard</h1>
+			<Link className="btn btn-primary" to="/admin/cars/create">
+				Create New Car
+			</Link>
+			<div className="mt-4">
+				<button className="btn btn-secondary mx-1" onClick={() => setFilter("all")}>
+					All
+				</button>
+				<button className="btn btn-secondary mx-1" onClick={() => setFilter("small")}>
+					Small
+				</button>
+				<button className="btn btn-secondary mx-1" onClick={() => setFilter("medium")}>
+					Medium
+				</button>
+				<button className="btn btn-secondary mx-1" onClick={() => setFilter("large")}>
+					Large
+				</button>
+			</div>
+			<div className="row mt-4">
+				{filteredCars.length > 0 ? (
+					filteredCars.map((car) => (
+						<div key={car.id} className="col-lg-3 mb-lg-0 mb-4">
+							<div className="card z-index-2">
+								<div className="card-body p-3">
+									<img src={car.image} className="card-img-top" alt={`${car.name}`} />
+									<h3 className="ms-2 mt-4 mb-0 card-title">
+										{car.name} / <span>{car.type}</span>
+									</h3>
+									<p className="card-text">Rp{car.rentPerDay} / Hari</p>
+									<p className="card-text">
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											viewBox="0 0 20 20"
+											fill="currentColor"
+											className="bi bi-clock"
+											width="16"
+											height="16"
+										>
+											<path d="M9.25 4a.75.75 0 0 1 .75.75v4.794l3.02 1.809a.75.75 0 1 1-.75 1.298l-3.77-2.262a.75.75 0 0 1-.25-.56V4.75a.75.75 0 0 1 .75-.75z" />
+											<path
+												fillRule="evenodd"
+												d="M10 1a9 9 0 1 1 0 18 9 9 0 0 1 0-18zm0 1a8 8 0 1 1 0 16 8 8 0 0 1 0-16z"
+											/>
+										</svg>
+										Available At {new Date(car.availableAt).toDateString()}
+									</p>
+									<button className="btn btn-danger btn-sm mx-1" onClick={() => deleteCar(car.id)}>
+										Delete
+									</button>
+									<button className="btn btn-warning btn-sm mx-1" onClick={() => handleEdit(car)}>
+										Edit
+									</button>
+								</div>
+							</div>
+						</div>
+					))
+				) : (
+					<div>No cars available</div>
+				)}
+			</div>
 
-  const handleEdit = (car) => {
-    setNewCar(car);
-    setIsEditing(true);
-  };
+			<div className="row my-4">
+				<div className="col-lg-12 col-md-6 mb-md-0 mb-4">
+					<div className="card">
+						<div className="card-header pb-0">
+							<div className="row">
+								<div className="col-lg-6 col-7">
+									<h6>Cars Stock</h6>
+								</div>
+								<div className="col-lg-6 col-5 my-auto text-end">
+									<div className="dropdown float-lg-end pe-4">
+										<a
+											className="cursor-pointer"
+											id="dropdownTable"
+											data-bs-toggle="dropdown"
+											aria-expanded="false"
+										>
+											<i className="fa fa-ellipsis-v text-secondary"></i>
+										</a>
+										<ul className="dropdown-menu px-2 py-3 ms-sm-n4 ms-n5" aria-labelledby="dropdownTable">
+											<li>
+												<a className="dropdown-item border-radius-md" href="javascript:;">
+													Action
+												</a>
+											</li>
+											<li>
+												<a className="dropdown-item border-radius-md" href="javascript:;">
+													Another action
+												</a>
+											</li>
+											<li>
+												<a className="dropdown-item border-radius-md" href="javascript:;">
+													Something else here
+												</a>
+											</li>
+										</ul>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div className="card-body px-0 pb-2">
+							<div className="table-responsive">
+								<table className="table align-items-center mb-0">
+									<thead>
+										<tr>
+											<th className="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">
+												Nama Mobil
+											</th>
+											<th className="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">
+												Type
+											</th>
+											<th className="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">
+												Foto
+											</th>
+											<th className="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">
+												Budget
+											</th>
 
-  return (
-    <div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (isEditing) {
-            updateCar(newCar.id);
-          } else {
-            createCar();
-          }
-          setNewCar({
-            id: "",
-            plate: "",
-            manufacture: "",
-            model: "",
-            image: "",
-            rentPerDay: 0,
-            capacity: 0,
-            description: "",
-            availableAt: "",
-            transmission: "",
-            available: false,
-            type: "",
-            year: 0,
-            options: [],
-            specs: []
-          });
-          setIsEditing(false);
-        }}
-      >
-        <input type="text" name="plate" value={newCar.plate} onChange={handleChange} placeholder="Plate" /><br />
-        <input type="text" name="manufacture" value={newCar.manufacture} onChange={handleChange} placeholder="Manufacture" /><br />
-        <input type="text" name="model" value={newCar.model} onChange={handleChange} placeholder="Model" /><br />
-        <input type="text" name="image" value={newCar.image} onChange={handleChange} placeholder="Image URL" /><br />
-        <input type="number" name="rentPerDay" value={newCar.rentPerDay} onChange={handleChange} placeholder="Rent per Day" /><br />
-        <input type="number" name="capacity" value={newCar.capacity} onChange={handleChange} placeholder="Capacity" /><br />
-        <textarea name="description" value={newCar.description} onChange={handleChange} placeholder="Description"></textarea><br />
-        <input type="datetime-local" name="availableAt" value={newCar.availableAt} onChange={handleChange} placeholder="Available At" /><br />
-        <input type="text" name="transmission" value={newCar.transmission} onChange={handleChange} placeholder="Transmission" /><br />
-        <label>Available</label>
-        <input type="checkbox" name="available" checked={newCar.available} onChange={() => setNewCar((prevCar) => ({ ...prevCar, available: !prevCar.available }))} /><br />
-        
-        <input type="text" name="type" value={newCar.type} onChange={handleChange} placeholder="Type" /><br />
-        <input type="number" name="year" value={newCar.year} onChange={handleChange} placeholder="Year" /><br /><br />
-        <button type="submit">{isEditing ? "Update Car" : "Create Car"}</button>
-      </form>
-
-      <ul id="car-list">
-        {cars.map((car) => (
-          <div key={car.id}>
-            <img src={car.image} alt={car.model} />
-            <h1>Manufacture: {car.manufacture}</h1>
-            <h1>Model: {car.model}</h1>
-            <h1>Rent Per Day: {car.rentPerDay}</h1>
-            <h1>Capacity: {car.capacity}</h1>
-            <h1>Available At: {car.availableAt}</h1>
-            <button onClick={() => handleEdit(car)}>Edit</button>
-            <button onClick={() => deleteCar(car.id)}>Delete</button>
-          </div>
-        ))}
-      </ul>
-    </div>
-  );
+											<th className="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">
+												Handle Action
+											</th>
+										</tr>
+									</thead>
+									<tbody>
+										{cars.length > 0 ? (
+											cars.map((car) => (
+												<tr key={car.id}>
+													<td>
+														<div className="d-flex px-2 py-1">
+															<div className="d-flex flex-column justify-content-center">
+																<h6 className="mb-0 text-sm">{car.name}</h6>
+															</div>
+														</div>
+													</td>
+													<td className="align-middle text-center text-sm">
+														<span className="text-xs font-weight-bold">{car.type}</span>
+													</td>
+													<td>
+														<div className="avatar-group mt-2 h-10 w-10">
+															<img src={car.image} alt={car.nama} height="50px" />
+														</div>
+													</td>
+													<td className="align-middle text-center text-sm">
+														<span className="text-xs font-weight-bold">{car.rentPerDay}</span>
+													</td>
+													<td className="align-middle text-center text-sm">
+														<button className="btn btn-danger btn-sm mx-1" onClick={() => deleteCar(car.id)}>
+															Delete
+														</button>
+														<button className="btn btn-warning btn-sm mx-1" onClick={() => handleEdit(car)}>
+															Edit
+														</button>
+													</td>
+												</tr>
+											))
+										) : (
+											<tr>
+												<td>-</td>
+												<td>-</td>
+												<td>-</td>
+												<td>-</td>
+											</tr>
+										)}
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
 };
 
 export default HandleCarList;
